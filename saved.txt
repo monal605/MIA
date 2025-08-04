@@ -1,0 +1,251 @@
+import os
+import json
+import random
+import string
+import requests
+from dotenv import load_dotenv
+import google.generativeai as genai
+import re  # Import the regular expression module
+
+# Load Gemini API key
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+
+def generate_random_string(length=8):
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+def get_item_quantities_from_gemini(message: str) -> dict:
+    # print(message)
+    prompt = f"""
+You will receive an order message. Extract only the product names and their respective quantities.
+
+Return the result strictly as a JSON dictionary of the form:
+{{
+  "item1": quantity,
+  "item2": quantity,
+  ...
+}}
+
+Ignore all unrelated fields such as name, email, company, etc.
+For example,
+{{
+"name":"Monisha",
+"email":"abx@hds",
+"Wireless Mouse":8,
+"Laptop Stand":2
+}}
+
+**IMPORTANT:** Return ONLY the JSON. Do not include any backticks, "json" or any other text outside the JSON structure.
+
+Message:
+\"\"\"{message}\"\"\"
+"""
+    response = gemini_model.generate_content(prompt)
+    # print(response.text)
+
+    # Post-processing to remove backticks and "json"
+    json_string = response.text.strip()
+    json_string = re.sub(r'```(?:json)?\s*', '', json_string)  # Remove backticks and "json"
+    json_string = re.sub(r'```', '', json_string)  # Remove backticks
+    try:
+        return json.loads(json_string)
+    except json.JSONDecodeError as e:
+        print("⚠️ Gemini response not in JSON format.")
+        print(f"Error: {e}")
+        return {}
+
+def format_message_for_memory(message: str) -> str:
+    prompt = f"""
+You will receive a message that contains newlines, plus signs, and may not be properly formatted as a JSON string. Your task is to reformat this message into a valid JSON string, suitable for storage in a database.
+
+1.  Ensure the message is a valid JSON format.
+2.  Remove any unnecessary characters, such as newline characters (\\n) and plus signs (+).
+3.  Ensure that the message is a single-line JSON string.
+4.  **IMPORTANT:** Return ONLY the JSON string. Do not include any backticks, "json" or any other text outside the JSON structure.
+
+Message:
+\"\"\"{message}\"\"\"
+"""
+    response = gemini_model.generate_content(prompt)
+    json_string = response.text.strip()
+    json_string = re.sub(r'```(?:json)?\s*', '', json_string)  # Remove backticks and "json"
+    json_string = re.sub(r'```', '', json_string)  # Remove backticks
+    return json_string
+
+def main():
+    print("📨 Please give me your text, press Enter twice to submit):")
+   
+    lines = []
+    while True:
+        line = input()
+        if line.strip() == "":
+            break
+        lines.append(line)
+
+    message = "\n".join(lines)
+
+    # print(message)
+    # Step 1: Call classifier
+    print("\n🔍 Sending message to classifier agent...\n")
+    try:
+        classify_response = requests.post("http://localhost:5004/classify", data={"text": message})
+        classify_data = classify_response.json()
+        print("✅ Classifier Response:", classify_data)
+    except Exception as e:
+        print("❌ Failed to contact classifier:", e)
+        return
+
+    format_type = classify_data.get("format", "Unknown")
+    intent = classify_data.get("intent", "Unknown")
+
+    print(f"\n🔁 Redirecting you to {format_type} agent...")
+
+    items = get_item_quantities_from_gemini(message)
+
+    # Step 2: Handle order placement
+    if intent.lower() == "order placement":
+        print("\n📦 Order intent detected...")
+
+        # Step 2.1: Send data to memory agent
+        collection_name = generate_random_string()
+        
+        print("\nPLEASE NOTE YOUR ORDER ID : ",collection_name,"\n")
+
+        # Format the message for memory agent
+        # formatted_message = format_message_for_memory(message)
+        # print("formatted message:",formatted_message)
+
+        try:
+            message_dict = json.loads(message)  # Parse the JSON string into a Python dictionary
+            name = message_dict.get("name", "Unknown") 
+            email = message_dict.get("email", "Unknown") 
+        
+
+            # Safely get the value of the 'name' key
+        except json.JSONDecodeError:
+            name = "Invalid JSON"  # Handle the case where the message is not valid JSON
+            email = "Invalid JSON"
+
+
+        # Convert items to the desired format
+        products_list = []
+        for product_name, quantity in items.items():
+            products_list.append({"name": product_name, "quantity": quantity})
+
+        memory_payload = {
+            "type": intent,
+            "collection": collection_name,
+            "name": name,
+            "email":email,
+            "products":products_list  # Use the converted list
+        }
+        try:
+            mem_response = requests.post("http://localhost:5003/memory", json=memory_payload)
+            print("🧠 Memory Agent Response:", mem_response.text)
+        except Exception as e:
+            print("❌ Memory agent error:", e)
+
+        # Step 2.2: Extract items + quantities using Gemini
+        print("\n🤖 Asking Gemini to extract items & quantities...")
+        
+        # print(items)
+        if items:
+            print("📦 Items extracted:", items)
+            try:
+                stock_response = requests.post("http://localhost:5002/update_stock", json=items)
+                print("📉 Inventory Update Response:", stock_response.text)
+            except Exception as e:
+                print("❌ Inventory update error:", e)
+        else:
+            print("⚠️ No items extracted.")
+    
+    elif intent.lower() == "rfq":
+        print("\n📨 RFQ intent detected...")
+
+        try:
+            # print(message)
+            rfq_response = requests.get("http://localhost:5005/json/RFQ",  data=message, headers={'Content-Type': 'text/plain'})
+            print("📄 RFQ Agent Response:", rfq_response.text)
+        except Exception as e:
+            print("❌ RFQ Agent Error:", e)
+
+    elif intent.lower() == "complaint":
+        print("\n⚠️ Complaint intent detected...")
+
+        prompt = f"""
+        You will be given a customer complaint message. Extract the key details from the message and return it in the following JSON format:
+
+        {{
+        "order_id": "<order_id_from_message>",
+        "type": "complaint",
+        "issue": "<short summary of the problem>"
+        }}
+
+        Only return valid JSON. Do not include any backticks or explanatory text.
+
+        Message:
+        \"\"\"{message}\"\"\"
+        """
+        try:
+            print("🤖 Sending complaint to Gemini for processing...")
+            gemini_response = gemini_model.generate_content(prompt)
+            json_string = gemini_response.text.strip()
+            json_string = re.sub(r'```(?:json)?\s*', '', json_string)  # Clean up backticks and "json"
+            json_string = re.sub(r'```', '', json_string)
+
+            complaint_data = json.loads(json_string)
+            print("✅ Complaint Parsed:", complaint_data)
+
+            # POST to memory agent
+            try:
+                mem_response = requests.post("http://localhost:5003/memory", json=complaint_data)
+                print("🧠 Memory Agent Response:", mem_response.text)
+            except Exception as e:
+                print("❌ Memory Agent Error while posting complaint:", e)
+
+        except Exception as e:
+            print("❌ Gemini failed to parse complaint:", e)
+
+    elif intent.lower() == "invoice":
+        print("\n🧾 Invoice intent detected...")
+        
+        # Step 1: Ask Gemini for order_id
+        prompt = f"""
+    You will receive a message that might include an order ID.
+    Extract ONLY the order ID and return it as a JSON in the following format:
+
+    {{
+    "order_id": "..."
+    }}
+
+    IMPORTANT: Do not include anything else — no backticks, no markdown, no commentary. Only return the JSON.
+
+    Message:
+    \"\"\"{message}\"\"\"
+    """
+        try:
+            # print("message",message)
+            response = gemini_model.generate_content(prompt)
+            json_string = response.text.strip()
+            json_string = re.sub(r'```(?:json)?\s*', '', json_string)
+            json_string = re.sub(r'```', '', json_string)
+            order_data = json.loads(json_string)
+            order_id = order_data.get("order_id", None)
+
+            # print(order_id)
+            if order_id:
+                url = f"http://localhost:5000/get/{order_id}"
+                invoice_response = requests.get(url)
+                print("📑 Invoice Agent Response:", invoice_response.text)
+            else:
+                print("⚠️ Gemini did not return a valid order ID.")
+        except Exception as e:
+            print("❌ Error handling invoice intent:", e)
+
+    
+    # else:
+    #     print(f"ℹ️ No special routing for intent '{intent}'.")
+
+if __name__ == "__main__":
+    main()

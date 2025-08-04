@@ -1,0 +1,24 @@
+complaints : 
+{
+  "type":"complaint",
+  "issue_description": "string",
+  "submitted_at": "ISODate", 
+  "status": "Open | In Progress | Resolved",
+}
+
+order placement : 
+{
+  "type":"order placement",
+  "customer_name": "string",
+  "email": "string",
+  "products": [
+    {
+      "name": "string",
+      "quantity": "int"
+    }
+  ],
+  "requested_delivery_date": "ISODate",
+  "status": "Placed | Confirmed | Shipped | Cancelled | Updated",
+  "submitted_at": "ISODate",
+}
+

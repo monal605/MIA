@@ -1,0 +1,53 @@
+REQUEST FOR QUOTATION
+Company Name: Acme Engineering Pvt. Ltd.  
+Contact Person: Mr. Rohit Sharma  
+Email: rohit.sharma@acme.com  
+Phone: +91-9876543210  
+Date: 04 June 2025
+We are interested in procuring the following items:
+Product Name: Wireless Mouse : 40 units , Laptop Stand : 25 units, WiFi Router : 10 units
+Delivery Location: Pune, Maharashtra  
+Preferred Delivery Date: Within 2 weeks  
+Additional Notes: Please include warranty and payment terms in the quotation.
+Thank you,  
+Acme Procurement Team
+
+-----------------
+
+{   
+    "name":"Akhil Rajendra",
+    "email":"akhil123@gmail.com",
+    products:[
+    {"Wireless Mouse":100},
+    {"Laptop Stand":100},
+    {"WiFi Router":100}
+    ]
+   
+}
+
+---------------------
+
+From: rohit.sharma@acme.com  
+To: sales@vendorcorp.com  
+Subject: Request for Invoice - Order xkw42dkt
+Dear Team,
+I hope you're doing well.
+I recently placed an order with you, and I would appreciate it if you could share the invoice for my order ID: xkw42dkt at your earliest convenience.
+Let me know if any additional information is required.
+Best regards,  
+Akhil Nair  
+akhil.nair@example.com  
+Sales Manager, Trident Ltd.
+
+--------------------------
+Company Name: Acme Engineering Pvt. Ltd.  
+Contact Person: Mr. Rohit Sharma  
+Email: rohit.sharma@acme.com  
+Phone: +91-9876543210  
+Date: 04 June 2025
+Dear Support Team,
+I placed an order last week, and the order ID is  xkw42dkt. The package arrived yesterday, but unfortunately, the wireless mouse I received is not working. The keys are unresponsive, and it seems like a hardware fault.
+Please assist me in resolving this issue as soon as possible.
+Regards,  
+Rahul Mehta  
+rahul.mehta@example.com

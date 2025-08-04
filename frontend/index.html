@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MIA Automation Frontend</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container animate-in">
+    <div class="header">
+      <h1 class="title">🤖 MIA Automation</h1>
+      <p class="subtitle">Intelligent message processing and automation</p>
+    </div>
+    <div class="form-group">
+      <label for="inputText" class="label">
+        <i class="fas fa-file-text"></i>
+        Paste your message (Email, JSON, RFQ, Complaint, etc):
+      </label>
+      <div class="textarea-wrapper">
+        <textarea 
+          id="inputText" 
+          placeholder="Paste your message here and let MIA work its magic...&#10;&#10;• Email content&#10;• JSON data&#10;• RFQ documents&#10;• Customer complaints&#10;• Any text that needs processing"
+        ></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="clearBtn" type="button" class="btn btn-secondary">
+        <i class="fas fa-eraser"></i>
+        Clear
+      </button>
+      <button id="submitBtn" class="btn btn-primary">
+        <i class="fas fa-paper-plane"></i>
+        Process Message
+      </button>
+    </div>
+    <div class="output" id="output" style="display:none"></div>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
